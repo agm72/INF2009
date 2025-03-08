@@ -3,15 +3,94 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Face Login</title>
+    <title>Face Recognition Login</title>
+    
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" 
+          href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+
+    <style>
+        body {
+            background-color: #f8f9fa;
+            text-align: center;
+            font-family: 'Arial', sans-serif;
+        }
+        .container {
+            max-width: 450px;
+            margin-top: 80px;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .loading-icon {
+            width: 80px;
+            height: 80px;
+            border: 8px solid #e0e0e0;
+            border-top: 8px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .status-text {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            margin-top: 15px;
+        }
+        .btn {
+            width: 100%;
+            margin-top: 20px;
+        }
+    </style>
 </head>
 <body>
-    <h2>Face Recognition Login</h2>
-    <p>Looking for a face...</p>
+
+    <div class="container">
+        <h2 class="mb-3">Face Recognition Login</h2>
+        <p class="status-text">Please look into the camera...</p>
+        
+        <!-- Animated Loading Spinner -->
+        <div class="loading-icon"></div>
+
+        <button id="retry-btn" class="btn btn-secondary d-none">Retry</button>
+    </div>
+
     <script>
-        setTimeout(() => {
-            window.location.href = "/face-login";
-        }, 1000);
+        function startFaceLogin() {
+            fetch("/face-login")
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        window.location.href = "/";
+                    } else {
+                        document.querySelector(".status-text").textContent = "Face not recognized. Try again.";
+                        document.querySelector(".loading-icon").style.display = "none";
+                        document.getElementById("retry-btn").classList.remove("d-none");
+                    }
+                })
+                .catch(error => {
+                    console.error("Error:", error);
+                    document.querySelector(".status-text").textContent = "An error occurred. Please try again.";
+                    document.querySelector(".loading-icon").style.display = "none";
+                    document.getElementById("retry-btn").classList.remove("d-none");
+                });
+        }
+
+        // Automatically start face login when page loads
+        window.onload = function() {
+            startFaceLogin();
+        };
+
+        // Retry button to restart face login
+        document.getElementById("retry-btn").addEventListener("click", function() {
+            location.reload();
+        });
     </script>
+
 </body>
 </html>

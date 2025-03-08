@@ -31,11 +31,28 @@
         let capturedImages = [];
 
         document.getElementById("clear-btn").addEventListener("click", function() {
-            document.getElementById("captured-images").innerHTML = "";
-            capturedImages = [];
-            enableInputs();
-            validateImageCount();
+            let username = document.getElementById("username").value.trim();
+            if (!username) {
+               alert("Enter a username first!");
+               return;
+            }
+
+         fetch("/clear-images", {
+             method: "POST",
+             headers: { "Content-Type": "application/x-www-form-urlencoded" },
+             body: `username=${username}`
+         })
+         .then(response => response.json())
+         .then(data => {
+             alert(data.message);
+             document.getElementById("captured-images").innerHTML = "";
+             capturedImages = [];
+             enableInputs();
+             validateImageCount();
+         })
+         .catch(err => console.error("Error clearing images:", err));
         });
+
 
         document.getElementById("capture-btn").addEventListener("click", function() {
             let username = document.getElementById("username").value;

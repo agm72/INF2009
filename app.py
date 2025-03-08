@@ -10,6 +10,9 @@ from flask import Flask, request, render_template, redirect, url_for, flash, ses
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.utils import secure_filename
 from modules.ultrasonic import get_distance
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
 
 # Flask Setup
 app = Flask(__name__)
@@ -217,6 +220,21 @@ def register():
         return redirect(url_for('face_login_page'))
 
     return render_template('register.html')
+
+@app.route('/clear-images', methods=['POST'])
+def clear_images():
+    """Clears all captured images for a user in the temp folder."""
+    username = request.form.get('username')
+    print(f"{username}")
+    temp_folder = os.path.join(TEMP_FOLDER, username)
+    print(f"Received clear request for username: {username}")
+    print(f"Received clear request for temp_folder: {temp_folder}")  
+    if os.path.exists(temp_folder):
+        shutil.rmtree(temp_folder)  # Delete the temp folder
+        os.makedirs(temp_folder)  # Recreate an empty temp folder
+    
+    return jsonify({"message": "All images cleared successfully!"})
+
 
 # -------------- Face Login --------------
 @app.route('/face-login', methods=['GET'])
