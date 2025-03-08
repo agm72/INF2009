@@ -137,12 +137,12 @@ def recognize_face():
                 cap.release()
                 return name
 
-        cv2.imshow("Face Login", frame)
-        if cv2.waitKey(1) == ord("q"):  # Press 'q' to exit
-            break
+     #   cv2.imshow("Face Login", frame)
+     #   if cv2.waitKey(1) == ord("q"):  # Press 'q' to exit
+     #       break
 
     cap.release()
-    cv2.destroyAllWindows()
+    #cv2.destroyAllWindows()
     return None
 
 @app.route('/capture', methods=['POST'])
@@ -178,6 +178,9 @@ def capture():
 # -------------- Registration --------------
 @app.route('/register', methods=['GET', 'POST'])
 def register():
+    if 'user_id' in session:
+       return redirect(url_for('home'))
+
     if request.method == 'POST':
         username = request.form.get('username')
         temp_folder = os.path.join(TEMP_FOLDER, username)
@@ -237,21 +240,24 @@ def clear_images():
 
 
 # -------------- Face Login --------------
-@app.route('/face-login', methods=['GET'])
+@app.route("/face-login", methods=["GET"])
 def face_login():
     user_name = recognize_face()
-    if user_name:
-        user = User.query.filter_by(name=user_name).first()
-        if user:
-            session['user_id'] = user.id
-            flash(f"Welcome back, {user_name}!", "success")
-            return redirect(url_for('home'))
-    
-    flash("Face not recognized. Try again.", "error")
-    return redirect(url_for('face_login_page'))
+    if not user_name:
+        return jsonify({"success": False, "error": "Face not recognized."})
+
+    user = User.query.filter_by(name=user_name).first()
+    if not user:
+        return jsonify({"success": False, "error": "No such user."})
+
+    session["user_id"] = user.id
+    return jsonify({"success": True})
 
 @app.route('/face-login-page')
 def face_login_page():
+    if 'user_id' in session:
+       return redirect(url_for('home'))
+
     return render_template('face_login.html')
 
 # -------------- Logout --------------
