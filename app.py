@@ -9,6 +9,7 @@ from imutils import paths
 from flask import Flask, request, render_template, jsonify, session, send_from_directory, Response
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.utils import secure_filename
+from datetime import datetime, timedelta
 from modules.ultrasonic import get_distance
 import logging
 
@@ -32,7 +33,7 @@ ENCODINGS_FILE = "encodings.pickle"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(TEMP_FOLDER, exist_ok=True)
 
-# Database Model
+# ------------------ Database Models ------------------
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), unique=True, nullable=False)
@@ -41,6 +42,15 @@ class User(db.Model):
     image3 = db.Column(db.String(200))
     image4 = db.Column(db.String(200))
     image5 = db.Column(db.String(200))
+
+# NEW: Task Model
+class Task(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    start_time = db.Column(db.DateTime, nullable=False)
+    user = db.relationship('User', backref=db.backref('tasks', lazy=True))
 
 with app.app_context():
     db.create_all()
@@ -155,9 +165,14 @@ def gen_frames():
 # ------------------ Routes that serve HTML templates ------------------
 @app.route('/')
 def home():
-    # Optional: get user from session so you can pass to template
     user = db.session.get(User, session['user_id']) if 'user_id' in session else None
-    return render_template('index.html', user=user)
+    
+    # If user is logged in, fetch tasks
+    user_tasks = []
+    if user:
+        user_tasks = Task.query.filter_by(user_id=user.id).order_by(Task.start_time.asc()).all()
+
+    return render_template('index.html', user=user, tasks=user_tasks)
 
 @app.route('/face-login-page')
 def face_login_page():
@@ -284,9 +299,80 @@ def logout():
     session.pop('user_id', None)
     return jsonify({"success": True, "message": "You have been logged out."})
 
+# ------------------ Task CRUD Routes ------------------
+@app.route('/add_task', methods=['POST'])
+def add_task():
+    """Add a new task for the logged-in user."""
+    if 'user_id' not in session:
+        return jsonify({"success": False, "message": "Not logged in"}), 401
+
+    user = db.session.get(User, session['user_id'])
+    title = request.form.get('title', '').strip()
+    description = request.form.get('description', '').strip()
+    start_time_str = request.form.get('start_time', '').strip()
+
+    if not title or not start_time_str:
+        return jsonify({"success": False, "message": "Title and Start Date/Time are required."}), 400
+
+    try:
+        start_time = datetime.strptime(start_time_str, '%Y-%m-%dT%H:%M')
+    except ValueError:
+        return jsonify({"success": False, "message": "Invalid date/time format."}), 400
+
+    new_task = Task(
+        user_id=user.id,
+        title=title,
+        description=description,
+        start_time=start_time
+    )
+    db.session.add(new_task)
+    db.session.commit()
+    return jsonify({"success": True, "message": "Task added successfully."})
+
+@app.route('/edit_task/<int:task_id>', methods=['POST'])
+def edit_task(task_id):
+    """Edit an existing task."""
+    if 'user_id' not in session:
+        return jsonify({"success": False, "message": "Not logged in"}), 401
+
+    task = Task.query.get_or_404(task_id)
+    if task.user_id != session['user_id']:
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    title = request.form.get('title', '').strip()
+    description = request.form.get('description', '').strip()
+    start_time_str = request.form.get('start_time', '').strip()
+
+    if not title or not start_time_str:
+        return jsonify({"success": False, "message": "Title and Start Date/Time are required."}), 400
+
+    try:
+        start_time = datetime.strptime(start_time_str, '%Y-%m-%dT%H:%M')
+    except ValueError:
+        return jsonify({"success": False, "message": "Invalid date/time format."}), 400
+
+    task.title = title
+    task.description = description
+    task.start_time = start_time
+    db.session.commit()
+
+    return jsonify({"success": True, "message": "Task updated successfully."})
+
+@app.route('/delete_task/<int:task_id>', methods=['POST'])
+def delete_task(task_id):
+    """Delete an existing task."""
+    if 'user_id' not in session:
+        return jsonify({"success": False, "message": "Not logged in"}), 401
+
+    task = Task.query.get_or_404(task_id)
+    if task.user_id != session['user_id']:
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    db.session.delete(task)
+    db.session.commit()
+    return jsonify({"success": True, "message": "Task deleted successfully."})
 
 # ------------------ File & Sensor Endpoints ------------------
-
 @app.route('/users/<int:user_id>/<path:filename>')
 def get_image(user_id, filename):
     """Serve user images stored in /Users/{user_id}/"""
@@ -316,12 +402,7 @@ def sensor_data():
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
-@app.route('/video_feed')
-def video_feed():
-    if 'user_id' not in session:
-        return "You must be logged in to view this feed.", 403
-    return Response(gen_frames(),
-                    mimetype='multipart/x-mixed-replace; boundary=frame')
+
 # ------------------ Run Flask ------------------
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
