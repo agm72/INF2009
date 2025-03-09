@@ -1,120 +1,168 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Register</title>
-    <link rel="stylesheet" 
-          href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Register</title>
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+  />
 </head>
 <body>
-    <div class="container mt-5">
-        <h2 class="text-center">Register</h2>
-        <form id="register-form" action="/register" method="POST">
-            <div class="mb-3">
-                <label for="username" class="form-label">Username</label>
-                <input type="text" name="username" id="username" class="form-control" required>
-            </div>
-            
-            <div class="mb-3">
-                <button type="button" id="capture-btn" class="btn btn-primary">Capture Image</button>
-                <button type="button" id="clear-btn" class="btn btn-danger">Clear All Images</button>
-            </div>
-            
-            <div id="captured-images" class="mt-3"></div>
-            
-            <button type="submit" id="register-btn" class="btn btn-success w-100" disabled>Register</button>
-        </form>
-    </div>
+  <div class="container mt-5">
+    <h2 class="text-center">Register</h2>
+    <!-- We remove the action/method so we handle it all with JavaScript -->
+    <form id="register-form">
+      <div class="mb-3">
+        <label for="username" class="form-label">Username</label>
+        <input
+          type="text"
+          name="username"
+          id="username"
+          class="form-control"
+          required
+        />
+      </div>
 
-    <script>
-        let capturedImages = [];
+      <div class="mb-3">
+        <button type="button" id="capture-btn" class="btn btn-primary">
+          Capture Image
+        </button>
+        <button type="button" id="clear-btn" class="btn btn-danger">
+          Clear All Images
+        </button>
+      </div>
 
-        document.getElementById("clear-btn").addEventListener("click", function() {
-            let username = document.getElementById("username").value.trim();
-            if (!username) {
-               alert("Enter a username first!");
-               return;
-            }
+      <div id="captured-images" class="mt-3"></div>
 
-         fetch("/clear-images", {
-             method: "POST",
-             headers: { "Content-Type": "application/x-www-form-urlencoded" },
-             body: `username=${username}`
-         })
-         .then(response => response.json())
-         .then(data => {
-             alert(data.message);
-             document.getElementById("captured-images").innerHTML = "";
-             capturedImages = [];
-             enableInputs();
-             validateImageCount();
-         })
-         .catch(err => console.error("Error clearing images:", err));
-        });
+      <button type="submit" id="register-btn" class="btn btn-success w-100" disabled>
+        Register
+      </button>
+    </form>
+  </div>
 
+  <script>
+    let capturedImages = [];
 
-        document.getElementById("capture-btn").addEventListener("click", function() {
-            let username = document.getElementById("username").value;
-            if (!username) {
-                alert("Enter a username first!");
-                return;
-            }
-            
-            if (capturedImages.length >= 5) {
-                alert("You must capture exactly 5 images.");
-                return;
-            }
-            
-            fetch("/capture", {
-                method: "POST",
-                headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                body: `username=${username}`
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    alert(data.error);
-                } else {
-                    let container = document.getElementById("captured-images");
-                    let imgElement = document.createElement("img");
-                    let imgPath = `/temp/${username}/${data.image}`;
-                    imgElement.src = imgPath;
-                    imgElement.width = 100;
-                    imgElement.height = 100;
-                    imgElement.style.margin = "5px";
-                    container.appendChild(imgElement);
-                    capturedImages.push(imgPath);
-                    validateImageCount();
-                }
-            })
-            .catch(err => console.error("Error capturing images:", err));
-        });
+    // Clear all images
+    document.getElementById("clear-btn").addEventListener("click", function() {
+      let username = document.getElementById("username").value.trim();
+      if (!username) {
+        alert("Enter a username first!");
+        return;
+      }
 
-        function validateImageCount() {
-            const registerBtn = document.getElementById("register-btn");
-            const captureBtn = document.getElementById("capture-btn");
-            
-            if (capturedImages.length === 5 && document.getElementById("username").value.trim() !== "") {
-                registerBtn.disabled = false;
-                captureBtn.disabled = true;
-            } else {
-                registerBtn.disabled = true;
-                captureBtn.disabled = false;
-            }
-        }
+      fetch("/clear-images", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: `username=${encodeURIComponent(username)}`
+      })
+        .then(response => response.json())
+        .then(data => {
+          alert(data.message);
+          document.getElementById("captured-images").innerHTML = "";
+          capturedImages = [];
+          enableInputs();
+          validateImageCount();
+        })
+        .catch(err => console.error("Error clearing images:", err));
+    });
 
-        function enableInputs() {
-            document.getElementById("capture-btn").disabled = false;
-            document.getElementById("register-btn").disabled = true;
-        }
+    // Capture a new image
+    document.getElementById("capture-btn").addEventListener("click", function() {
+      let username = document.getElementById("username").value.trim();
+      if (!username) {
+        alert("Enter a username first!");
+        return;
+      }
 
-        document.getElementById("register-form").addEventListener("submit", function(event) {
-            if (document.getElementById("username").value.trim() === "" || capturedImages.length !== 5) {
-                event.preventDefault();
-                alert("Please capture exactly 5 images before registering.");
-            }
-        });
-    </script>
+      if (capturedImages.length >= 5) {
+        alert("You must capture exactly 5 images.");
+        return;
+      }
+
+      fetch("/capture", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: `username=${encodeURIComponent(username)}`
+      })
+        .then(response => response.json())
+        .then(data => {
+          if (!data.success) {
+            alert(data.error || "Capture failed.");
+          } else {
+            let container = document.getElementById("captured-images");
+            let imgElement = document.createElement("img");
+            let imgPath = `/temp/${username}/${data.image}`;
+            imgElement.src = imgPath;
+            imgElement.width = 100;
+            imgElement.height = 100;
+            imgElement.style.margin = "5px";
+            container.appendChild(imgElement);
+            capturedImages.push(imgPath);
+            validateImageCount();
+          }
+        })
+        .catch(err => console.error("Error capturing images:", err));
+    });
+
+    // Enable/disable the register button based on image count & username
+    function validateImageCount() {
+      const registerBtn = document.getElementById("register-btn");
+      const captureBtn = document.getElementById("capture-btn");
+      let username = document.getElementById("username").value.trim();
+
+      if (capturedImages.length === 5 && username !== "") {
+        registerBtn.disabled = false;
+        captureBtn.disabled = true;
+      } else {
+        registerBtn.disabled = true;
+        captureBtn.disabled = false;
+      }
+    }
+
+    function enableInputs() {
+      document.getElementById("capture-btn").disabled = false;
+      document.getElementById("register-btn").disabled = true;
+    }
+
+    // Handle the final registration via fetch (JSON)
+    document.getElementById("register-form").addEventListener("submit", function(event) {
+      event.preventDefault(); // prevent default page reload
+
+      let username = document.getElementById("username").value.trim();
+      if (username === "" || capturedImages.length !== 5) {
+        alert("Please capture exactly 5 images before registering.");
+        return;
+      }
+
+      // We'll send the username as form-data or x-www-form-urlencoded
+      let formData = new FormData();
+      formData.append("username", username);
+
+      // Or x-www-form-urlencoded:
+      // let bodyData = `username=${encodeURIComponent(username)}`;
+
+      fetch("/register", {
+        method: "POST",
+        body: formData,
+        // If you prefer x-www-form-urlencoded, do:
+        // headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        // body: bodyData,
+      })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            alert(data.message);
+            // Redirect to face login page or home
+            window.location.href = "/face-login-page";
+          } else {
+            alert(data.error || "Registration failed.");
+          }
+        })
+        .catch(err => console.error("Error registering:", err));
+    });
+  </script>
 </body>
 </html>
