@@ -25,10 +25,6 @@
       border-radius: 10px;
       box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
     }
-    .video-container img {
-      width: 400px;
-      max-width: 100%;
-    }
     .sensor-box {
       margin-top: 20px;
       padding: 15px;
@@ -48,10 +44,17 @@
     {% if user %}
       <h2>Welcome, {{ user.name }}!</h2>
 
-      <!-- Sensor Reading -->
+      <!-- Distance Reading -->
       <div class="sensor-box">
         <h4>Distance from Mirror:</h4>
         <p id="distance">Loading...</p>
+      </div>
+
+      <!-- NEW: Temperature & Humidity Reading -->
+      <div class="sensor-box mt-3">
+        <h4>Temperature & Humidity:</h4>
+        <p>Temperature: <span id="temperature">Loading...</span> °C</p>
+        <p>Humidity: <span id="humidity">Loading...</span> %</p>
       </div>
 
       <!-- Task Section -->
@@ -99,7 +102,7 @@
         <p>No tasks yet.</p>
       {% endif %}
 
-      <!-- Logout button (calls /logout via fetch JSON) -->
+      <!-- Logout button -->
       <button id="logout-btn" class="btn btn-danger mt-3">Log Out</button>
 
     {% else %}
@@ -184,14 +187,13 @@
   <script>
     let sensorInterval;
 
+    // Fetch ultrasonic distance
     function fetchSensorData() {
       fetch('/sensor-data')
         .then(response => response.json())
         .then(data => {
           if (data.success) {
-            if (data.distance !== undefined) {
-              document.getElementById('distance').textContent = data.distance + " cm";
-            }
+            document.getElementById('distance').textContent = data.distance + " cm";
           } else {
             document.getElementById('distance').textContent = "Error: " + data.error;
           }
@@ -199,9 +201,29 @@
         .catch(error => console.log("Error fetching sensor data:", error));
     }
 
+    // Fetch temperature/humidity
+    function fetchTempHumidityData() {
+      fetch('/temp-humidity')
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            document.getElementById('temperature').textContent = data.temperature;
+            document.getElementById('humidity').textContent = data.humidity;
+          } else {
+            document.getElementById('temperature').textContent = "Error";
+            document.getElementById('humidity').textContent = "Error";
+          }
+        })
+        .catch(error => console.log("Error fetching temp/humidity data:", error));
+    }
+
     function startSensorFetching() {
       {% if user %}
-        sensorInterval = setInterval(fetchSensorData, 5000); // fetch every 5 seconds
+        // Fetch both ultrasonic and DHT data every 5s
+        sensorInterval = setInterval(() => {
+          fetchSensorData();
+          fetchTempHumidityData();
+        }, 5000);
       {% endif %}
     }
 
@@ -209,7 +231,7 @@
       clearInterval(sensorInterval);
     }
 
-    // On page load, if we have a user, start the sensor loop
+    // On page load
     window.onload = function() {
       {% if user %}
         startSensorFetching();
@@ -218,7 +240,7 @@
       {% endif %}
     };
 
-    // Handle logout via fetch
+    // Logout
     document.addEventListener("DOMContentLoaded", function() {
       let logoutBtn = document.getElementById("logout-btn");
       if (logoutBtn) {
@@ -246,7 +268,6 @@
       addTaskForm.addEventListener('submit', function(e) {
         e.preventDefault();
         const formData = new FormData(addTaskForm);
-
         fetch('/add_task', {
           method: 'POST',
           body: formData
@@ -266,13 +287,7 @@
 
     // ========== EDIT TASK ==========
     function openEditModal(id, title, description, start_time) {
-      // Convert the existing date/time to the format suitable for <input type="datetime-local">
-      // start_time is ISO format, e.g. "2025-03-09T14:30:00"
-      // We might need to ensure the seconds are stripped, etc.
-      // If your date is stored in full ISO with seconds, you'll do some substring ops:
-      // e.g. "2025-03-09T14:30:00" => "2025-03-09T14:30"
       let dtValue = start_time.length > 16 ? start_time.substring(0,16) : start_time;
-
       document.getElementById('edit-task-id').value = id;
       document.getElementById('edit-title').value = title;
       document.getElementById('edit-description').value = description;
@@ -288,7 +303,6 @@
         e.preventDefault();
         let taskId = document.getElementById('edit-task-id').value;
         let formData = new FormData(editTaskForm);
-
         fetch('/edit_task/' + taskId, {
           method: 'POST',
           body: formData
