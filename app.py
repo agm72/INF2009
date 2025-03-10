@@ -6,13 +6,13 @@ import face_recognition
 import pickle
 import numpy as np
 from imutils import paths
-from flask import Flask, request, render_template, jsonify, session, send_from_directory, Response
+from flask import Flask, request, render_template, jsonify, session, send_from_directory, Response, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta
 from modules.ultrasonic import get_distance
 from modules.humidity_temp import get_temperature_humidity
-
+from datetime import datetime, timedelta
 import logging
 logging.basicConfig(level=logging.DEBUG)
 
@@ -155,17 +155,22 @@ def gen_frames():
 def home():
     user = db.session.get(User, session['user_id']) if 'user_id' in session else None
     user_tasks = []
+    now = datetime.utcnow()  
     if user:
         user_tasks = Task.query.filter_by(user_id=user.id).order_by(Task.start_time.asc()).all()
 
-    return render_template('index.html', user=user, tasks=user_tasks)
+    return render_template('index.html', user=user, tasks=user_tasks, now=now, timedelta=timedelta)
 
 @app.route('/face-login-page')
 def face_login_page():
+    if 'user_id' in session:
+        return redirect(url_for('home'))
     return render_template('face_login.html')
 
 @app.route('/register', methods=['GET'])
 def register_get():
+    if 'user_id' in session:
+        return redirect(url_for('home'))
     return render_template('register.html')
 
 # ------------------ JSON-based routes (POST/logic) ------------------
@@ -338,6 +343,22 @@ def delete_task(task_id):
     db.session.commit()
     return jsonify({"success": True, "message": "Task deleted successfully."})
 
+@app.route('/api/tasks')
+def api_tasks():
+    if 'user_id' not in session:
+        return jsonify({"success": False, "message": "Not logged in."}), 401
+
+    user = db.session.get(User, session['user_id'])
+    tasks = Task.query.filter_by(user_id=user.id).all()
+    events = []
+    for task in tasks:
+        events.append({
+            "id": task.id,
+            "title": task.title,
+            "start": task.start_time.isoformat(),
+            "description": task.description
+        })
+    return jsonify(events)
 # ------------------ File & Sensor Endpoints ------------------
 @app.route('/users/<int:user_id>/<path:filename>')
 def get_image(user_id, filename):
@@ -366,7 +387,6 @@ def sensor_data():
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
-# NEW ROUTE: temperature & humidity
 @app.route('/temp-humidity')
 def temp_humidity():
     """API endpoint to return temperature and humidity readings."""
@@ -376,7 +396,6 @@ def temp_humidity():
         return jsonify({"success": False, "error": "Failed to read sensor data"}), 500
 
     return jsonify({"success": True, "temperature": temperature, "humidity": humidity})
-
 # ------------------ Run Flask ------------------
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=False)

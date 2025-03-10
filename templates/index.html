@@ -4,107 +4,65 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Smart Display Mirror</title>
-
-  <!-- Bootstrap CSS -->
-  <link
-    rel="stylesheet"
-    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
-  />
-
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
   <style>
     body {
-      background-color: #f8f9fa;
-      text-align: center;
-      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #f0f4c3, #ffffff);
+      font-family: 'Roboto', sans-serif;
     }
     .container {
       max-width: 900px;
       margin-top: 50px;
-      background: white;
+      background: #ffffff;
       padding: 30px;
-      border-radius: 10px;
-      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      border-radius: 15px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
     }
     .sensor-box {
       margin-top: 20px;
-      padding: 15px;
-      background: #ddd;
+      padding: 20px;
+      background: #f5f5f5;
       border-radius: 10px;
-      font-size: 20px;
+      font-size: 18px;
     }
-    /* Highlight tasks starting soon (within 24 hours) */
-    .highlight-soon {
-      background-color: #fff3cd !important; /* A light yellow highlight */
+    /* Calendar container style */
+    #calendar {
+      max-width: 900px;
+      margin: 20px auto;
     }
   </style>
 </head>
 <body>
-
   <div class="container">
     {% if user %}
-      <h2>Welcome, {{ user.name }}!</h2>
+      <h2 class="mb-4">Welcome, {{ user.name }}!</h2>
 
-      <!-- Distance Reading -->
+      <!-- Sensor Readings -->
       <div class="sensor-box">
-        <h4>Distance from Mirror:</h4>
-        <p id="distance">Loading...</p>
+        <h5>Distance from Mirror:</h5>
+        <p id="distance" class="mb-0">Loading...</p>
       </div>
-
-      <!-- NEW: Temperature & Humidity Reading -->
       <div class="sensor-box mt-3">
-        <h4>Temperature & Humidity:</h4>
-        <p>Temperature: <span id="temperature">Loading...</span> °C</p>
-        <p>Humidity: <span id="humidity">Loading...</span> %</p>
+        <h5>Temperature & Humidity:</h5>
+        <p class="mb-1">Temperature: <span id="temperature">Loading...</span> °C</p>
+        <p class="mb-0">Humidity: <span id="humidity">Loading...</span> %</p>
       </div>
 
-      <!-- Task Section -->
-      <hr/>
-      <h3 class="mt-4">Your Tasks</h3>
-      <button class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#addTaskModal">
-        + Add New Task
-      </button>
+      <!-- Task Section Header -->
+      <hr class="my-4">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3>Your Tasks</h3>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addTaskModal">
+          + Add New Task
+        </button>
+      </div>
 
-      {% if tasks %}
-        <div class="table-responsive">
-          <table class="table table-bordered align-middle">
-            <thead>
-              <tr>
-                <th>Title</th>
-                <th>Description</th>
-                <th>Start Date/Time</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for task in tasks %}
-                <tr>
-                  <td>{{ task.title }}</td>
-                  <td>{{ task.description }}</td>
-                  <td>{{ task.start_time }}</td>
-                  <td>
-                    <button 
-                      class="btn btn-warning btn-sm"
-                      onclick="openEditModal('{{ task.id }}','{{ task.title }}','{{ task.description }}','{{ task.start_time.isoformat() }}')">
-                      Edit
-                    </button>
-                    <button 
-                      class="btn btn-danger btn-sm"
-                      onclick="deleteTask('{{ task.id }}')">
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      {% else %}
-        <p>No tasks yet.</p>
-      {% endif %}
+      <!-- Calendar Container -->
+      <div id="calendar"></div>
 
-      <!-- Logout button -->
+      <!-- Logout Button -->
       <button id="logout-btn" class="btn btn-danger mt-3">Log Out</button>
-
     {% else %}
       <h1 class="mb-4">Smart Display Mirror</h1>
       <a href="/face-login-page" class="btn btn-primary">Log In</a>
@@ -112,7 +70,7 @@
     {% endif %}
   </div>
 
-  <!-- ========== ADD TASK MODAL ========== -->
+  <!-- ADD TASK MODAL -->
   <div class="modal fade" id="addTaskModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
       <form id="add-task-form" class="modal-content">
@@ -131,12 +89,7 @@
           </div>
           <div class="mb-3 text-start">
             <label for="start_time" class="form-label">Start Date/Time</label>
-            <input 
-              type="datetime-local" 
-              class="form-control" 
-              id="start_time" 
-              name="start_time" 
-              required />
+            <input type="datetime-local" class="form-control" id="start_time" name="start_time" required />
           </div>
         </div>
         <div class="modal-footer">
@@ -146,7 +99,7 @@
     </div>
   </div>
 
-  <!-- ========== EDIT TASK MODAL ========== -->
+  <!-- EDIT TASK MODAL -->
   <div class="modal fade" id="editTaskModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
       <form id="edit-task-form" class="modal-content">
@@ -166,12 +119,7 @@
           </div>
           <div class="mb-3 text-start">
             <label for="edit-start_time" class="form-label">Start Date/Time</label>
-            <input 
-              type="datetime-local" 
-              class="form-control" 
-              id="edit-start_time" 
-              name="start_time" 
-              required />
+            <input type="datetime-local" class="form-control" id="edit-start_time" name="start_time" required />
           </div>
         </div>
         <div class="modal-footer">
@@ -181,13 +129,11 @@
     </div>
   </div>
 
-  <!-- Bootstrap JS (for modals, etc.) -->
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
   <script>
     let sensorInterval;
-
-    // Fetch ultrasonic distance
     function fetchSensorData() {
       fetch('/sensor-data')
         .then(response => response.json())
@@ -200,8 +146,6 @@
         })
         .catch(error => console.log("Error fetching sensor data:", error));
     }
-
-    // Fetch temperature/humidity
     function fetchTempHumidityData() {
       fetch('/temp-humidity')
         .then(response => response.json())
@@ -216,31 +160,54 @@
         })
         .catch(error => console.log("Error fetching temp/humidity data:", error));
     }
-
     function startSensorFetching() {
       {% if user %}
-        // Fetch both ultrasonic and DHT data every 5s
         sensorInterval = setInterval(() => {
           fetchSensorData();
           fetchTempHumidityData();
         }, 5000);
       {% endif %}
     }
-
     function stopSensorFetching() {
       clearInterval(sensorInterval);
     }
-
-    // On page load
     window.onload = function() {
       {% if user %}
         startSensorFetching();
+        // Check if FullCalendar is available
+        if (window.FullCalendar) {
+          console.log("FullCalendar loaded:", window.FullCalendar);
+          var calendarEl = document.getElementById('calendar');
+          var calendar = new window.FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth',
+            headerToolbar: {
+              left: 'prev,next today',
+              center: 'title',
+              right: 'dayGridMonth,timeGridWeek,timeGridDay'
+            },
+            events: '/api/tasks',
+            eventClick: function(info) {
+              // Open edit modal with task details on event click
+              let task = info.event;
+              let startTime = task.start; // ISO string
+              let dtValue = startTime.substring(0,16);
+              document.getElementById('edit-task-id').value = task.id;
+              document.getElementById('edit-title').value = task.title;
+              document.getElementById('edit-description').value = task.extendedProps.description;
+              document.getElementById('edit-start_time').value = dtValue;
+              let editModal = new bootstrap.Modal(document.getElementById('editTaskModal'));
+              editModal.show();
+            }
+          });
+          calendar.render();
+        } else {
+          console.error("FullCalendar is not defined on window.");
+        }
       {% else %}
         stopSensorFetching();
       {% endif %}
     };
 
-    // Logout
     document.addEventListener("DOMContentLoaded", function() {
       let logoutBtn = document.getElementById("logout-btn");
       if (logoutBtn) {
@@ -262,7 +229,6 @@
       }
     });
 
-    // ========== ADD TASK ==========
     const addTaskForm = document.getElementById('add-task-form');
     if (addTaskForm) {
       addTaskForm.addEventListener('submit', function(e) {
@@ -284,19 +250,15 @@
         .catch(err => console.error("Add task error:", err));
       });
     }
-
-    // ========== EDIT TASK ==========
     function openEditModal(id, title, description, start_time) {
       let dtValue = start_time.length > 16 ? start_time.substring(0,16) : start_time;
       document.getElementById('edit-task-id').value = id;
       document.getElementById('edit-title').value = title;
       document.getElementById('edit-description').value = description;
       document.getElementById('edit-start_time').value = dtValue;
-
       let editModal = new bootstrap.Modal(document.getElementById('editTaskModal'));
       editModal.show();
     }
-
     const editTaskForm = document.getElementById('edit-task-form');
     if (editTaskForm) {
       editTaskForm.addEventListener('submit', function(e) {
@@ -319,8 +281,6 @@
         .catch(err => console.error("Edit task error:", err));
       });
     }
-
-    // ========== DELETE TASK ==========
     function deleteTask(taskId) {
       if (!confirm("Are you sure you want to delete this task?")) {
         return;
@@ -340,6 +300,5 @@
       .catch(err => console.error("Delete task error:", err));
     }
   </script>
-
 </body>
 </html>
