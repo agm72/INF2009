@@ -5,10 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Register</title>
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-  <link
-    rel="stylesheet"
-    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
-  />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
   <style>
     body {
       background: linear-gradient(135deg, #e0f7fa, #ffffff);
@@ -35,26 +32,14 @@
         <form id="register-form">
           <div class="mb-3">
             <label for="username" class="form-label">Username</label>
-            <input
-              type="text"
-              name="username"
-              id="username"
-              class="form-control"
-              required
-            />
+            <input type="text" name="username" id="username" class="form-control" required />
           </div>
           <div class="mb-3 d-flex justify-content-between">
-            <button type="button" id="capture-btn" class="btn btn-primary">
-              Capture Image
-            </button>
-            <button type="button" id="clear-btn" class="btn btn-danger">
-              Clear Images
-            </button>
+            <button type="button" id="capture-btn" class="btn btn-primary">Capture Image</button>
+            <button type="button" id="clear-btn" class="btn btn-danger">Clear Images</button>
           </div>
           <div id="captured-images" class="d-flex flex-wrap justify-content-center mt-3"></div>
-          <button type="submit" id="register-btn" class="btn btn-success w-100 mt-4" disabled>
-            Register
-          </button>
+          <button type="submit" id="register-btn" class="btn btn-success w-100 mt-4" disabled>Register</button>
         </form>
       </div>
     </div>
@@ -62,6 +47,11 @@
 
   <script>
     let capturedImages = [];
+
+    // Function to prevent image caching by adding a timestamp to the URL
+    function preventCache(imagePath) {
+      return `${imagePath}?t=${new Date().getTime()}`;
+    }
 
     // Clear all images
     document.getElementById("clear-btn").addEventListener("click", function() {
@@ -75,15 +65,15 @@
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: `username=${encodeURIComponent(username)}`
       })
-        .then(response => response.json())
-        .then(data => {
-          alert(data.message);
-          document.getElementById("captured-images").innerHTML = "";
-          capturedImages = [];
-          enableInputs();
-          validateImageCount();
-        })
-        .catch(err => console.error("Error clearing images:", err));
+      .then(response => response.json())
+      .then(data => {
+        alert(data.message);
+        document.getElementById("captured-images").innerHTML = "";
+        capturedImages = []; // Reset captured images array
+        enableInputs();
+        validateImageCount();
+      })
+      .catch(err => console.error("Error clearing images:", err));
     });
 
     // Capture a new image
@@ -102,24 +92,24 @@
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: `username=${encodeURIComponent(username)}`
       })
-        .then(response => response.json())
-        .then(data => {
-          if (!data.success) {
-            alert(data.error || "Capture failed.");
-          } else {
-            let container = document.getElementById("captured-images");
-            let imgElement = document.createElement("img");
-            let imgPath = `/temp/${username}/${data.image}`;
-            imgElement.src = imgPath;
-            imgElement.width = 100;
-            imgElement.height = 100;
-            imgElement.classList.add("m-1", "rounded");
-            container.appendChild(imgElement);
-            capturedImages.push(imgPath);
-            validateImageCount();
-          }
-        })
-        .catch(err => console.error("Error capturing images:", err));
+      .then(response => response.json())
+      .then(data => {
+        if (!data.success) {
+          alert(data.error || "Capture failed.");
+        } else {
+          let container = document.getElementById("captured-images");
+          let imgElement = document.createElement("img");
+          let imgPath = preventCache(`/temp/${username}/${data.image}`);
+          imgElement.src = imgPath;
+          imgElement.width = 100;
+          imgElement.height = 100;
+          imgElement.classList.add("m-1", "rounded");
+          container.appendChild(imgElement);
+          capturedImages.push(imgPath);
+          validateImageCount();
+        }
+      })
+      .catch(err => console.error("Error capturing images:", err));
     });
 
     // Enable/disable the register button based on image count & username
@@ -136,10 +126,19 @@
       }
     }
 
+    // Enable input buttons after clearing
     function enableInputs() {
       document.getElementById("capture-btn").disabled = false;
       document.getElementById("register-btn").disabled = true;
     }
+
+    // Clear images when username is changed
+    document.getElementById("username").addEventListener("input", function() {
+      document.getElementById("captured-images").innerHTML = "";
+      capturedImages = [];
+      enableInputs();
+      validateImageCount();
+    });
 
     // Handle the final registration via fetch (JSON)
     document.getElementById("register-form").addEventListener("submit", function(event) {
@@ -155,17 +154,18 @@
         method: "POST",
         body: formData,
       })
-        .then(response => response.json())
-        .then(data => {
-          if (data.success) {
-            alert(data.message);
-            window.location.href = "/face-login-page";
-          } else {
-            alert(data.error || "Registration failed.");
-          }
-        })
-        .catch(err => console.error("Error registering:", err));
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          alert(data.message);
+          window.location.href = "/face-login-page";
+        } else {
+          alert(data.error || "Registration failed.");
+        }
+      })
+      .catch(err => console.error("Error registering:", err));
     });
   </script>
 </body>
 </html>
+
