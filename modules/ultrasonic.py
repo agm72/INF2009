@@ -22,7 +22,7 @@ def get_distance():
     GPIO.setup(SIG, GPIO.IN)
 
     pulse_start = time.time()
-    timeout = pulse_start + 0.06  # 20ms timeout
+    timeout = pulse_start + 0.04  # 20ms timeout
 
     # Wait for echo start (avoid infinite loop)
     while GPIO.input(SIG) == 0:

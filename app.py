@@ -376,16 +376,16 @@ def get_temp_image(username, filename):
         return "File not found", 404
     return send_from_directory(temp_folder, filename)
 
-@app.route('/sensor-data')
-def sensor_data():
-    """Returns the distance measured by the ultrasonic sensor."""
-    try:
-        distance = get_distance()
-        if distance == -1:
-            return jsonify({"success": False, "error": "Measurement timeout! Check wiring."}), 500
-        return jsonify({"success": True, "distance": distance})
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+#@app.route('/sensor-data')
+#def sensor_data():
+#    """Returns the distance measured by the ultrasonic sensor."""
+#    try:
+#        distance = get_distance()
+#        if distance == -1:
+#            return jsonify({"success": False, "error": "Measurement timeout! Check wiring."}), 500
+#        return jsonify({"success": True, "distance": distance})
+#    except Exception as e:
+#        return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route('/temp-humidity')
 def temp_humidity():
