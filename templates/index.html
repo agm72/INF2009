@@ -39,14 +39,29 @@
       <h2 class="mb-4">Welcome, {{ user.name }}!</h2>
 
       <!-- Sensor Readings -->
-      <div class="sensor-box">
-        <h5>Distance from Mirror:</h5>
-        <p id="distance" class="mb-0">Loading...</p>
-      </div>
-      <div class="sensor-box mt-3">
-        <h5>Temperature & Humidity:</h5>
-        <p class="mb-1">Temperature: <span id="temperature">Loading...</span> °C</p>
-        <p class="mb-0">Humidity: <span id="humidity">Loading...</span> %</p>
+      <div class="row my-3">
+        <div class="col-sm-4">
+          <div class="sensor-box d-flex flex-column align-items-center">
+            <h6 class="mb-1">Distance</h6>
+            <p id="distance" class="mb-0 small">Loading...</p>
+          </div>
+        </div>
+        <div class="col-sm-4">
+          <div class="sensor-box d-flex flex-column align-items-center">
+            <h6 class="mb-1">Temperature</h6>
+            <p class="mb-0 small">
+              <span id="temperature">Loading...</span> °C
+            </p>
+          </div>
+        </div>
+        <div class="col-sm-4">
+          <div class="sensor-box d-flex flex-column align-items-center">
+            <h6 class="mb-1">Humidity</h6>
+            <p class="mb-0 small">
+              <span id="humidity">Loading...</span> %
+            </p>
+          </div>
+        </div>
       </div>
 
       <!-- Task Section Header -->
