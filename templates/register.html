@@ -30,16 +30,44 @@
       <div class="card-body">
         <h2 class="text-center mb-4">Register</h2>
         <form id="register-form">
+          <!-- USERNAME -->
           <div class="mb-3">
             <label for="username" class="form-label">Username</label>
-            <input type="text" name="username" id="username" class="form-control" required />
+            <input 
+              type="text" 
+              name="username" 
+              id="username" 
+              class="form-control" 
+              required
+            />
           </div>
+          <!-- DATE OF BIRTH -->
+          <div class="mb-3">
+            <label for="dob" class="form-label">Date of Birth</label>
+            <input
+              type="date"
+              name="date_of_birth"
+              id="dob"
+              class="form-control"
+              required
+            />
+          </div>
+          <!-- CAPTURE + CLEAR -->
           <div class="mb-3 d-flex justify-content-between">
             <button type="button" id="capture-btn" class="btn btn-primary">Capture Image</button>
             <button type="button" id="clear-btn" class="btn btn-danger">Clear Images</button>
           </div>
+          <!-- PREVIEW IMAGES -->
           <div id="captured-images" class="d-flex flex-wrap justify-content-center mt-3"></div>
-          <button type="submit" id="register-btn" class="btn btn-success w-100 mt-4" disabled>Register</button>
+          <!-- REGISTER -->
+          <button 
+            type="submit" 
+            id="register-btn" 
+            class="btn btn-success w-100 mt-4" 
+            disabled
+          >
+            Register
+          </button>
         </form>
       </div>
     </div>
@@ -48,12 +76,33 @@
   <script>
     let capturedImages = [];
 
-    // Function to prevent image caching by adding a timestamp to the URL
+    // Function to prevent image caching by adding a timestamp
     function preventCache(imagePath) {
       return `${imagePath}?t=${new Date().getTime()}`;
     }
 
-    // Clear all images
+    // Validate whether to enable "Register" button
+    function validateForm() {
+      const registerBtn = document.getElementById("register-btn");
+      const captureBtn = document.getElementById("capture-btn");
+      let username = document.getElementById("username").value.trim();
+      let dob = document.getElementById("dob").value.trim();
+      if (capturedImages.length === 5 && username !== "" && dob !== "") {
+        registerBtn.disabled = false;
+        captureBtn.disabled = true;
+      } else {
+        registerBtn.disabled = true;
+        captureBtn.disabled = false;
+      }
+    }
+
+    // Enable buttons after clearing images
+    function enableInputs() {
+      document.getElementById("capture-btn").disabled = false;
+      document.getElementById("register-btn").disabled = true;
+    }
+
+    // CLEAR IMAGES
     document.getElementById("clear-btn").addEventListener("click", function() {
       let username = document.getElementById("username").value.trim();
       if (!username) {
@@ -69,14 +118,14 @@
       .then(data => {
         alert(data.message);
         document.getElementById("captured-images").innerHTML = "";
-        capturedImages = []; // Reset captured images array
+        capturedImages = [];
         enableInputs();
-        validateImageCount();
+        validateForm();
       })
       .catch(err => console.error("Error clearing images:", err));
     });
 
-    // Capture a new image
+    // CAPTURE IMAGE
     document.getElementById("capture-btn").addEventListener("click", function() {
       let username = document.getElementById("username").value.trim();
       if (!username) {
@@ -106,50 +155,38 @@
           imgElement.classList.add("m-1", "rounded");
           container.appendChild(imgElement);
           capturedImages.push(imgPath);
-          validateImageCount();
+          validateForm();
         }
       })
       .catch(err => console.error("Error capturing images:", err));
     });
 
-    // Enable/disable the register button based on image count & username
-    function validateImageCount() {
-      const registerBtn = document.getElementById("register-btn");
-      const captureBtn = document.getElementById("capture-btn");
-      let username = document.getElementById("username").value.trim();
-      if (capturedImages.length === 5 && username !== "") {
-        registerBtn.disabled = false;
-        captureBtn.disabled = true;
-      } else {
-        registerBtn.disabled = true;
-        captureBtn.disabled = false;
-      }
-    }
-
-    // Enable input buttons after clearing
-    function enableInputs() {
-      document.getElementById("capture-btn").disabled = false;
-      document.getElementById("register-btn").disabled = true;
-    }
-
-    // Clear images when username is changed
+    // When username or DOB changes, reset images and enable inputs
     document.getElementById("username").addEventListener("input", function() {
       document.getElementById("captured-images").innerHTML = "";
       capturedImages = [];
       enableInputs();
-      validateImageCount();
+      validateForm();
+    });
+    document.getElementById("dob").addEventListener("input", function() {
+      validateForm();
     });
 
-    // Handle the final registration via fetch (JSON)
+    // REGISTER
     document.getElementById("register-form").addEventListener("submit", function(event) {
       event.preventDefault();
       let username = document.getElementById("username").value.trim();
-      if (username === "" || capturedImages.length !== 5) {
-        alert("Please capture exactly 5 images before registering.");
+      let dateOfBirth = document.getElementById("dob").value.trim();
+
+      if (username === "" || capturedImages.length !== 5 || dateOfBirth === "") {
+        alert("Please fill all fields and capture exactly 5 images before registering.");
         return;
       }
+
       let formData = new FormData();
       formData.append("username", username);
+      formData.append("date_of_birth", dateOfBirth);
+
       fetch("/register", {
         method: "POST",
         body: formData,
@@ -168,4 +205,3 @@
   </script>
 </body>
 </html>
-
