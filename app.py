@@ -12,8 +12,8 @@ from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta
 from modules.ultrasonic import get_distance
 from modules.humidity_temp import get_temperature_humidity
-from datetime import datetime, timedelta
 import logging
+
 logging.basicConfig(level=logging.DEBUG)
 
 # Flask Setup
@@ -38,6 +38,10 @@ os.makedirs(TEMP_FOLDER, exist_ok=True)
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), unique=True, nullable=False)
+    # New column: date_of_birth
+    date_of_birth = db.Column(db.Date, nullable=False)
+
+    # Storing up to 5 images for face recognition
     image1 = db.Column(db.String(200))
     image2 = db.Column(db.String(200))
     image3 = db.Column(db.String(200))
@@ -219,23 +223,36 @@ def register_post():
     if 'user_id' in session:
         return jsonify({"success": False, "error": "Already logged in."})
 
-    username = request.form.get('username', '')
+    username = request.form.get('username', '').strip()
+    date_of_birth_str = request.form.get('date_of_birth', '').strip()
     temp_folder = os.path.join(TEMP_FOLDER, username)
 
+    # Check if username is taken
     if User.query.filter_by(name=username).first():
         return jsonify({"success": False, "error": "Username is already taken!"})
 
+    # Validate date_of_birth
+    if not date_of_birth_str:
+        return jsonify({"success": False, "error": "Date of Birth is required."})
+    try:
+        date_of_birth = datetime.strptime(date_of_birth_str, '%Y-%m-%d').date()
+    except ValueError:
+        return jsonify({"success": False, "error": "Invalid Date of Birth format. Use YYYY-MM-DD."})
+
+    # Validate images
     image_files = os.listdir(temp_folder) if os.path.exists(temp_folder) else []
     if len(image_files) < 5:
         return jsonify({"success": False, "error": "You must capture at least 5 images!"})
 
-    new_user = User(name=username)
+    # Create new user
+    new_user = User(name=username, date_of_birth=date_of_birth)
     db.session.add(new_user)
     db.session.commit()
 
     user_folder = os.path.join(UPLOAD_FOLDER, str(new_user.id))
     os.makedirs(user_folder, exist_ok=True)
 
+    # Move temp images to permanent user folder
     image_paths = []
     for i, image_file in enumerate(sorted(image_files)):
         new_filename = f"user_{new_user.id}_img{i+1}.png"
@@ -247,7 +264,10 @@ def register_post():
     new_user.image1, new_user.image2, new_user.image3, new_user.image4, new_user.image5 = image_paths
     db.session.commit()
 
+    # Clean up temp folder
     shutil.rmtree(temp_folder, ignore_errors=True)
+
+    # Retrain model with new user
     train_model()
 
     return jsonify({
@@ -359,6 +379,7 @@ def api_tasks():
             "description": task.description
         })
     return jsonify(events)
+
 # ------------------ File & Sensor Endpoints ------------------
 @app.route('/users/<int:user_id>/<path:filename>')
 def get_image(user_id, filename):
@@ -376,16 +397,16 @@ def get_temp_image(username, filename):
         return "File not found", 404
     return send_from_directory(temp_folder, filename)
 
-#@app.route('/sensor-data')
-#def sensor_data():
-#    """Returns the distance measured by the ultrasonic sensor."""
-#    try:
-#        distance = get_distance()
-#        if distance == -1:
-#            return jsonify({"success": False, "error": "Measurement timeout! Check wiring."}), 500
-#        return jsonify({"success": True, "distance": distance})
-#    except Exception as e:
-#        return jsonify({"success": False, "error": str(e)}), 500
+# @app.route('/sensor-data')
+# def sensor_data():
+#     """Returns the distance measured by the ultrasonic sensor."""
+#     try:
+#         distance = get_distance()
+#         if distance == -1:
+#             return jsonify({"success": False, "error": "Measurement timeout! Check wiring."}), 500
+#         return jsonify({"success": True, "distance": distance})
+#     except Exception as e:
+#         return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route('/temp-humidity')
 def temp_humidity():
@@ -396,6 +417,7 @@ def temp_humidity():
         return jsonify({"success": False, "error": "Failed to read sensor data"}), 500
 
     return jsonify({"success": True, "temperature": temperature, "humidity": humidity})
+
 # ------------------ Run Flask ------------------
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=False)
