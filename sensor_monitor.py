@@ -3,8 +3,8 @@ import time
 from modules.ultrasonic import get_distance
 
 # Configuration
-APP_COMMAND = ['python3', 'app.py']  # Adjust as needed (e.g. python vs python3)
-DISTANCE_THRESHOLD = 40.0  # in centimeters
+APP_COMMAND = ['python3', 'testing.py']  # Adjust as needed (e.g. python vs python3)
+DISTANCE_THRESHOLD = 50.0  # in centimeters
 CHECK_INTERVAL = 5         # seconds between sensor checks
 AWAY_TIME = 20             # seconds to wait after user leaves before stopping the app
 
