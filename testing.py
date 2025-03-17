@@ -28,7 +28,7 @@ class User(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String(100), unique=True, nullable=False)
     date_of_birth = Column(Date, nullable=False)
-    # Other fields (like image paths) are omitted for simplicity
+    schedule_link = Column(String(300), nullable=False)  # Added schedule_link field
 
 # ------------------ Face Recognition Setup ------------------
 UPLOAD_FOLDER = '/home/fuzzi/WebInterface/Users'
@@ -110,7 +110,8 @@ def main():
     age = calculate_age(recognized_user.date_of_birth)
     message_data = {
         "username": recognized_user.name,
-        "age": age
+        "age": age,
+        "schedule_link": recognized_user.schedule_link  # Include schedule_link in the message
     }
     message = json.dumps(message_data)
     print(f"[INFO] Valid user detected: {recognized_user.name}, Age: {age}. Starting continuous MQTT publishing...")
