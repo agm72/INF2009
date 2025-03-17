@@ -8,143 +8,136 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
   <style>
     body {
-      background: linear-gradient(135deg, #f0f4c3, #ffffff);
+      background: #f4f6f8;
       font-family: 'Roboto', sans-serif;
     }
+    .navbar {
+      background-color: #5e35b1;
+    }
+    .navbar-brand, .nav-link, .navbar-text {
+      color: #ffffff !important;
+    }
     .container {
-      max-width: 900px;
-      margin-top: 50px;
-      background: #ffffff;
-      padding: 30px;
+      margin-top: 20px;
+    }
+    .card {
+      border: none;
       border-radius: 15px;
       box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+    .card-header {
+      background-color: #5e35b1;
+      color: #ffffff;
+      border-top-left-radius: 15px;
+      border-top-right-radius: 15px;
     }
     .sensor-box {
-      margin-top: 20px;
       padding: 20px;
-      background: #f5f5f5;
+      background: #ffffff;
       border-radius: 10px;
-      font-size: 18px;
+      text-align: center;
     }
-    /* Calendar container style */
-    #calendar {
-      max-width: 900px;
-      margin: 20px auto;
+    .table thead {
+      background-color: #5e35b1;
+      color: #ffffff;
     }
   </style>
 </head>
 <body>
+  <!-- Navigation Bar -->
+  <nav class="navbar navbar-expand-lg">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="#">Smart Display Mirror</a>
+      <div class="collapse navbar-collapse justify-content-end">
+        {% if user %}
+        <ul class="navbar-nav">
+          <li class="nav-item">
+            <span class="navbar-text">Welcome, {{ user.name }}!</span>
+          </li>
+          <li class="nav-item">
+            <button id="logout-btn" class="btn btn-outline-light ms-3">Log Out</button>
+          </li>
+        </ul>
+        {% endif %}
+      </div>
+    </div>
+  </nav>
+
   <div class="container">
     {% if user %}
-      <h2 class="mb-4">Welcome, {{ user.name }}!</h2>
-
-      <!-- Sensor Readings -->
-      <div class="row my-3">
-        <div class="col-sm-6">
-          <div class="sensor-box d-flex flex-column align-items-center">
-            <h6 class="mb-1">Temperature</h6>
-            <p class="mb-0 small">
-              <span id="temperature">Loading...</span> °C
-            </p>
+    <!-- Sensor Data Card -->
+    <div class="card">
+      <div class="card-header">
+        Sensor Readings
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-sm-6 sensor-box">
+            <h6>Temperature</h6>
+            <p class="fs-4"><span id="temperature">Loading...</span> °C</p>
           </div>
-        </div>
-        <div class="col-sm-6">
-          <div class="sensor-box d-flex flex-column align-items-center">
-            <h6 class="mb-1">Humidity</h6>
-            <p class="mb-0 small">
-              <span id="humidity">Loading...</span> %
-            </p>
+          <div class="col-sm-6 sensor-box">
+            <h6>Humidity</h6>
+            <p class="fs-4"><span id="humidity">Loading...</span> %</p>
           </div>
         </div>
       </div>
+    </div>
 
-      <!-- Task Section Header -->
-      <hr class="my-4">
-      <div class="d-flex justify-content-between align-items-center mb-3">
-        <h3>Your Tasks</h3>
-        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addTaskModal">
-          + Add New Task
-        </button>
+    <!-- Heart Rate Analytics Card -->
+    {% if heart_rate_stats %}
+    <div class="card">
+      <div class="card-header">
+        Heart Rate Analytics
       </div>
-
-      <!-- Calendar Container -->
-      <div id="calendar"></div>
-
-      <!-- Logout Button -->
-      <button id="logout-btn" class="btn btn-danger mt-3">Log Out</button>
+      <div class="card-body">
+        <div class="row">
+          <!-- Analytics Table -->
+          <div class="col-md-6">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Min</th>
+                  <th>Max</th>
+                  <th>Average</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for date, stats in heart_rate_stats.items() %}
+                <tr>
+                  <td>{{ date }}</td>
+                  <td>{{ stats.min }}</td>
+                  <td>{{ stats.max }}</td>
+                  <td>{{ stats.avg }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <!-- Chart Display -->
+          <div class="col-md-6">
+            <canvas id="heartRateChart" width="400" height="300"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
     {% else %}
-      <h1 class="mb-4">Smart Display Mirror</h1>
-      <a href="/face-login-page" class="btn btn-primary">Log In</a>
-      <a href="/register" class="btn btn-success">Register</a>
+      <div class="text-center mt-5">
+        <h1>Welcome to Smart Display Mirror</h1>
+        <a href="/face-login-page" class="btn btn-primary me-3">Log In</a>
+        <a href="/register" class="btn btn-success">Register</a>
+      </div>
     {% endif %}
   </div>
 
-  <!-- ADD TASK MODAL -->
-  <div class="modal fade" id="addTaskModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-      <form id="add-task-form" class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">Add New Task</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <div class="mb-3 text-start">
-            <label for="title" class="form-label">Task Title</label>
-            <input type="text" class="form-control" id="title" name="title" required />
-          </div>
-          <div class="mb-3 text-start">
-            <label for="description" class="form-label">Task Description</label>
-            <textarea class="form-control" id="description" name="description" rows="3"></textarea>
-          </div>
-          <div class="mb-3 text-start">
-            <label for="start_time" class="form-label">Start Date/Time</label>
-            <input type="datetime-local" class="form-control" id="start_time" name="start_time" required />
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="submit" class="btn btn-success">Save Task</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- EDIT TASK MODAL -->
-  <div class="modal fade" id="editTaskModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-      <form id="edit-task-form" class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">Edit Task</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <input type="hidden" id="edit-task-id" name="task_id" />
-          <div class="mb-3 text-start">
-            <label for="edit-title" class="form-label">Task Title</label>
-            <input type="text" class="form-control" id="edit-title" name="title" required />
-          </div>
-          <div class="mb-3 text-start">
-            <label for="edit-description" class="form-label">Task Description</label>
-            <textarea class="form-control" id="edit-description" name="description" rows="3"></textarea>
-          </div>
-          <div class="mb-3 text-start">
-            <label for="edit-start_time" class="form-label">Start Date/Time</label>
-            <input type="datetime-local" class="form-control" id="edit-start_time" name="start_time" required />
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="submit" class="btn btn-warning">Update Task</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
   <!-- Scripts -->
-  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
     let sensorInterval;
-    // Removed fetchSensorData function
-
     function fetchTempHumidityData() {
       fetch('/temp-humidity')
         .then(response => response.json())
@@ -159,7 +152,6 @@
         })
         .catch(error => console.log("Error fetching temp/humidity data:", error));
     }
-
     function startSensorFetching() {
       {% if user %}
         sensorInterval = setInterval(() => {
@@ -173,35 +165,30 @@
     window.onload = function() {
       {% if user %}
         startSensorFetching();
-        // Check if FullCalendar is available
-        if (window.FullCalendar) {
-          console.log("FullCalendar loaded:", window.FullCalendar);
-          var calendarEl = document.getElementById('calendar');
-          var calendar = new window.FullCalendar.Calendar(calendarEl, {
-            initialView: 'dayGridMonth',
-            headerToolbar: {
-              left: 'prev,next today',
-              center: 'title',
-              right: 'dayGridMonth,timeGridWeek,timeGridDay'
+        // Render Heart Rate Chart if analytics data exists
+        {% if heart_rate_stats %}
+          const stats = {{ heart_rate_stats | tojson }};
+          const labels = Object.keys(stats);
+          const avgData = labels.map(date => stats[date].avg);
+          const ctx = document.getElementById('heartRateChart').getContext('2d');
+          new Chart(ctx, {
+            type: 'line',
+            data: {
+              labels: labels,
+              datasets: [{
+                label: 'Average Heart Rate',
+                data: avgData,
+                borderWidth: 2,
+                fill: false
+              }]
             },
-            events: '/api/tasks',
-            eventClick: function(info) {
-              // Open edit modal with task details on event click
-              let task = info.event;
-              let startTime = task.start; // ISO string
-              let dtValue = startTime.substring(0,16);
-              document.getElementById('edit-task-id').value = task.id;
-              document.getElementById('edit-title').value = task.title;
-              document.getElementById('edit-description').value = task.extendedProps.description;
-              document.getElementById('edit-start_time').value = dtValue;
-              let editModal = new bootstrap.Modal(document.getElementById('editTaskModal'));
-              editModal.show();
+            options: {
+              scales: {
+                y: { beginAtZero: true }
+              }
             }
           });
-          calendar.render();
-        } else {
-          console.error("FullCalendar is not defined on window.");
-        }
+        {% endif %}
       {% else %}
         stopSensorFetching();
       {% endif %}
@@ -227,77 +214,6 @@
         });
       }
     });
-
-    const addTaskForm = document.getElementById('add-task-form');
-    if (addTaskForm) {
-      addTaskForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-        const formData = new FormData(addTaskForm);
-        fetch('/add_task', {
-          method: 'POST',
-          body: formData
-        })
-        .then(res => res.json())
-        .then(data => {
-          if (data.success) {
-            alert(data.message);
-            location.reload();
-          } else {
-            alert(data.message);
-          }
-        })
-        .catch(err => console.error("Add task error:", err));
-      });
-    }
-    function openEditModal(id, title, description, start_time) {
-      let dtValue = start_time.length > 16 ? start_time.substring(0,16) : start_time;
-      document.getElementById('edit-task-id').value = id;
-      document.getElementById('edit-title').value = title;
-      document.getElementById('edit-description').value = description;
-      document.getElementById('edit-start_time').value = dtValue;
-      let editModal = new bootstrap.Modal(document.getElementById('editTaskModal'));
-      editModal.show();
-    }
-    const editTaskForm = document.getElementById('edit-task-form');
-    if (editTaskForm) {
-      editTaskForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-        let taskId = document.getElementById('edit-task-id').value;
-        let formData = new FormData(editTaskForm);
-        fetch('/edit_task/' + taskId, {
-          method: 'POST',
-          body: formData
-        })
-        .then(res => res.json())
-        .then(data => {
-          if (data.success) {
-            alert(data.message);
-            location.reload();
-          } else {
-            alert(data.message);
-          }
-        })
-        .catch(err => console.error("Edit task error:", err));
-      });
-    }
-    function deleteTask(taskId) {
-      if (!confirm("Are you sure you want to delete this task?")) {
-        return;
-      }
-      fetch('/delete_task/' + taskId, {
-        method: 'POST'
-      })
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) {
-          alert(data.message);
-          location.reload();
-        } else {
-          alert(data.message);
-        }
-      })
-      .catch(err => console.error("Delete task error:", err));
-    }
   </script>
 </body>
 </html>

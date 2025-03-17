@@ -5,10 +5,10 @@ import shutil
 import face_recognition
 import pickle
 import numpy as np
+import json  # For loading heart rate JSON data
 from imutils import paths
-from flask import Flask, request, render_template, jsonify, session, send_from_directory, Response, redirect, url_for
+from flask import Flask, request, render_template, jsonify, session, send_from_directory, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
-from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta
 from modules.ultrasonic import get_distance
 from modules.humidity_temp import get_temperature_humidity
@@ -28,33 +28,26 @@ db = SQLAlchemy(app)
 # Upload Paths
 UPLOAD_FOLDER = '/home/fuzzi/WebInterface/Users'
 TEMP_FOLDER = '/home/fuzzi/WebInterface/temp'
+HEARTRATE_FOLDER = 'Heartrate'  # Folder where heart rate JSON files are stored
 ENCODINGS_FILE = "encodings.pickle"
 
 # Ensure necessary folders exist
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(TEMP_FOLDER, exist_ok=True)
+os.makedirs(HEARTRATE_FOLDER, exist_ok=True)
 
 # ------------------ Database Models ------------------
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), unique=True, nullable=False)
-    # New column: date_of_birth
     date_of_birth = db.Column(db.Date, nullable=False)
-
+    schedule_link = db.Column(db.String(300), nullable=False)
     # Storing up to 5 images for face recognition
     image1 = db.Column(db.String(200))
     image2 = db.Column(db.String(200))
     image3 = db.Column(db.String(200))
     image4 = db.Column(db.String(200))
     image5 = db.Column(db.String(200))
-
-class Task(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    title = db.Column(db.String(200), nullable=False)
-    description = db.Column(db.Text, nullable=True)
-    start_time = db.Column(db.DateTime, nullable=False)
-    user = db.relationship('User', backref=db.backref('tasks', lazy=True))
 
 with app.app_context():
     db.create_all()
@@ -154,16 +147,46 @@ def gen_frames():
                b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
     camera.release()
 
+# ------------------ Heart Rate Analytics Utilities ------------------
+def load_heartrate_data(user_id):
+    """Load heart rate data from a JSON file for the given user."""
+    file_path = os.path.join(HEARTRATE_FOLDER, f"{user_id}.json")
+    if os.path.exists(file_path):
+        with open(file_path, "r") as f:
+            data = json.load(f)
+        return data
+    return {}
+
+def compute_heart_rate_stats(data):
+    """Compute daily analytics (min, max, average) for the heart rate data."""
+    stats = {}
+    for date, readings in data.items():
+        if readings:
+            stats[date] = {
+                "min": min(readings),
+                "max": max(readings),
+                "avg": round(sum(readings) / len(readings), 2)
+            }
+    return stats
+
 # ------------------ Routes that serve HTML templates ------------------
 @app.route('/')
 def home():
     user = db.session.get(User, session['user_id']) if 'user_id' in session else None
-    user_tasks = []
-    now = datetime.utcnow()  
-    if user:
-        user_tasks = Task.query.filter_by(user_id=user.id).order_by(Task.start_time.asc()).all()
+    now = datetime.utcnow()
+    heart_rate_stats = None
 
-    return render_template('index.html', user=user, tasks=user_tasks, now=now, timedelta=timedelta)
+    if user:
+        # Load and analyze heart rate data
+        hr_data = load_heartrate_data(user.id)
+        if hr_data:
+            heart_rate_stats = compute_heart_rate_stats(hr_data)
+
+    return render_template('index.html', 
+                           user=user, 
+                           now=now, 
+                           timedelta=timedelta,
+                           heart_rate_stats=heart_rate_stats)
 
 @app.route('/face-login-page')
 def face_login_page():
@@ -225,6 +248,7 @@ def register_post():
 
     username = request.form.get('username', '').strip()
     date_of_birth_str = request.form.get('date_of_birth', '').strip()
+    schedule_link = request.form.get('schedule_link', '').strip()  # Get the schedule link
     temp_folder = os.path.join(TEMP_FOLDER, username)
 
     # Check if username is taken
@@ -239,13 +263,17 @@ def register_post():
     except ValueError:
         return jsonify({"success": False, "error": "Invalid Date of Birth format. Use YYYY-MM-DD."})
 
+    # Validate schedule link
+    if not schedule_link:
+        return jsonify({"success": False, "error": "Schedule link is required."})
+
     # Validate images
     image_files = os.listdir(temp_folder) if os.path.exists(temp_folder) else []
     if len(image_files) < 5:
         return jsonify({"success": False, "error": "You must capture at least 5 images!"})
 
-    # Create new user
-    new_user = User(name=username, date_of_birth=date_of_birth)
+    # Create new user with the schedule link
+    new_user = User(name=username, date_of_birth=date_of_birth, schedule_link=schedule_link)
     db.session.add(new_user)
     db.session.commit()
 
@@ -275,6 +303,7 @@ def register_post():
         "message": "Registration successful! Please log in using face recognition."
     })
 
+
 @app.route('/face-login', methods=['GET'])
 def face_login():
     user_name = recognize_face()
@@ -293,93 +322,6 @@ def logout():
     session.pop('user_id', None)
     return jsonify({"success": True, "message": "You have been logged out."})
 
-# ------------------ Task CRUD Routes ------------------
-@app.route('/add_task', methods=['POST'])
-def add_task():
-    if 'user_id' not in session:
-        return jsonify({"success": False, "message": "Not logged in"}), 401
-
-    user = db.session.get(User, session['user_id'])
-    title = request.form.get('title', '').strip()
-    description = request.form.get('description', '').strip()
-    start_time_str = request.form.get('start_time', '').strip()
-
-    if not title or not start_time_str:
-        return jsonify({"success": False, "message": "Title and Start Date/Time are required."}), 400
-
-    try:
-        start_time = datetime.strptime(start_time_str, '%Y-%m-%dT%H:%M')
-    except ValueError:
-        return jsonify({"success": False, "message": "Invalid date/time format."}), 400
-
-    new_task = Task(
-        user_id=user.id,
-        title=title,
-        description=description,
-        start_time=start_time
-    )
-    db.session.add(new_task)
-    db.session.commit()
-    return jsonify({"success": True, "message": "Task added successfully."})
-
-@app.route('/edit_task/<int:task_id>', methods=['POST'])
-def edit_task(task_id):
-    if 'user_id' not in session:
-        return jsonify({"success": False, "message": "Not logged in"}), 401
-
-    task = Task.query.get_or_404(task_id)
-    if task.user_id != session['user_id']:
-        return jsonify({"success": False, "message": "Unauthorized"}), 403
-
-    title = request.form.get('title', '').strip()
-    description = request.form.get('description', '').strip()
-    start_time_str = request.form.get('start_time', '').strip()
-
-    if not title or not start_time_str:
-        return jsonify({"success": False, "message": "Title and Start Date/Time are required."}), 400
-
-    try:
-        start_time = datetime.strptime(start_time_str, '%Y-%m-%dT%H:%M')
-    except ValueError:
-        return jsonify({"success": False, "message": "Invalid date/time format."}), 400
-
-    task.title = title
-    task.description = description
-    task.start_time = start_time
-    db.session.commit()
-
-    return jsonify({"success": True, "message": "Task updated successfully."})
-
-@app.route('/delete_task/<int:task_id>', methods=['POST'])
-def delete_task(task_id):
-    if 'user_id' not in session:
-        return jsonify({"success": False, "message": "Not logged in"}), 401
-
-    task = Task.query.get_or_404(task_id)
-    if task.user_id != session['user_id']:
-        return jsonify({"success": False, "message": "Unauthorized"}), 403
-
-    db.session.delete(task)
-    db.session.commit()
-    return jsonify({"success": True, "message": "Task deleted successfully."})
-
-@app.route('/api/tasks')
-def api_tasks():
-    if 'user_id' not in session:
-        return jsonify({"success": False, "message": "Not logged in."}), 401
-
-    user = db.session.get(User, session['user_id'])
-    tasks = Task.query.filter_by(user_id=user.id).all()
-    events = []
-    for task in tasks:
-        events.append({
-            "id": task.id,
-            "title": task.title,
-            "start": task.start_time.isoformat(),
-            "description": task.description
-        })
-    return jsonify(events)
-
 # ------------------ File & Sensor Endpoints ------------------
 @app.route('/users/<int:user_id>/<path:filename>')
 def get_image(user_id, filename):
@@ -396,17 +338,6 @@ def get_temp_image(username, filename):
     if not os.path.exists(file_path):
         return "File not found", 404
     return send_from_directory(temp_folder, filename)
-
-# @app.route('/sensor-data')
-# def sensor_data():
-#     """Returns the distance measured by the ultrasonic sensor."""
-#     try:
-#         distance = get_distance()
-#         if distance == -1:
-#             return jsonify({"success": False, "error": "Measurement timeout! Check wiring."}), 500
-#         return jsonify({"success": True, "distance": distance})
-#     except Exception as e:
-#         return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route('/temp-humidity')
 def temp_humidity():

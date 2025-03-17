@@ -52,6 +52,17 @@
               required
             />
           </div>
+          <!-- SCHEDULE LINK -->
+          <div class="mb-3">
+            <label for="schedule_link" class="form-label">Schedule Link</label>
+            <input 
+              type="url" 
+              name="schedule_link" 
+              id="schedule_link" 
+              class="form-control" 
+              required
+            />
+          </div>
           <!-- CAPTURE + CLEAR -->
           <div class="mb-3 d-flex justify-content-between">
             <button type="button" id="capture-btn" class="btn btn-primary">Capture Image</button>
@@ -81,13 +92,14 @@
       return `${imagePath}?t=${new Date().getTime()}`;
     }
 
-    // Validate whether to enable "Register" button
+    // Validate whether to enable the "Register" button
     function validateForm() {
       const registerBtn = document.getElementById("register-btn");
       const captureBtn = document.getElementById("capture-btn");
       let username = document.getElementById("username").value.trim();
       let dob = document.getElementById("dob").value.trim();
-      if (capturedImages.length === 5 && username !== "" && dob !== "") {
+      let scheduleLink = document.getElementById("schedule_link").value.trim();
+      if (capturedImages.length === 5 && username !== "" && dob !== "" && scheduleLink !== "") {
         registerBtn.disabled = false;
         captureBtn.disabled = true;
       } else {
@@ -96,7 +108,7 @@
       }
     }
 
-    // Enable buttons after clearing images
+    // Enable inputs after clearing images
     function enableInputs() {
       document.getElementById("capture-btn").disabled = false;
       document.getElementById("register-btn").disabled = true;
@@ -161,24 +173,25 @@
       .catch(err => console.error("Error capturing images:", err));
     });
 
-    // When username or DOB changes, reset images and enable inputs
+    // Reset images and enable inputs when username changes
     document.getElementById("username").addEventListener("input", function() {
       document.getElementById("captured-images").innerHTML = "";
       capturedImages = [];
       enableInputs();
       validateForm();
     });
-    document.getElementById("dob").addEventListener("input", function() {
-      validateForm();
-    });
+    // Validate when DOB or schedule link is updated
+    document.getElementById("dob").addEventListener("input", validateForm);
+    document.getElementById("schedule_link").addEventListener("input", validateForm);
 
-    // REGISTER
+    // REGISTER form submission
     document.getElementById("register-form").addEventListener("submit", function(event) {
       event.preventDefault();
       let username = document.getElementById("username").value.trim();
       let dateOfBirth = document.getElementById("dob").value.trim();
+      let scheduleLink = document.getElementById("schedule_link").value.trim();
 
-      if (username === "" || capturedImages.length !== 5 || dateOfBirth === "") {
+      if (username === "" || capturedImages.length !== 5 || dateOfBirth === "" || scheduleLink === "") {
         alert("Please fill all fields and capture exactly 5 images before registering.");
         return;
       }
@@ -186,6 +199,7 @@
       let formData = new FormData();
       formData.append("username", username);
       formData.append("date_of_birth", dateOfBirth);
+      formData.append("schedule_link", scheduleLink);
 
       fetch("/register", {
         method: "POST",
@@ -205,3 +219,4 @@
   </script>
 </body>
 </html>
+
