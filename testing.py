@@ -7,7 +7,7 @@ import json
 import face_recognition
 import paho.mqtt.client as mqtt
 from imutils import paths
-from datetime import datetime
+from datetime import datetime, date
 from sqlalchemy import create_engine, Column, Integer, String, Date
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
@@ -81,6 +81,14 @@ def recognize_face():
     print("[INFO] Face not recognized within maximum attempts.")
     return None
 
+def calculate_age(born):
+    """
+    Calculate age from the date of birth.
+    """
+    today = date.today()
+    age = today.year - born.year - ((today.month, today.day) < (born.month, born.day))
+    return age
+
 # ------------------ MQTT Publisher ------------------
 def main():
     print("[INFO] Starting continuous face detection until a valid user is detected...")
@@ -98,13 +106,14 @@ def main():
 
         recognized_user = user
 
-    # Once a valid user is detected, create the MQTT message.
+    # Once a valid user is detected, calculate age and create the MQTT message.
+    age = calculate_age(recognized_user.date_of_birth)
     message_data = {
         "username": recognized_user.name,
-        "date_of_birth": recognized_user.date_of_birth.isoformat()
+        "age": age
     }
     message = json.dumps(message_data)
-    print(f"[INFO] Valid user detected: {recognized_user.name}. Starting continuous MQTT publishing...")
+    print(f"[INFO] Valid user detected: {recognized_user.name}, Age: {age}. Starting continuous MQTT publishing...")
 
     # Create MQTT client using the specified Callback API version.
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1, "Publisher")
