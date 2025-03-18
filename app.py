@@ -339,16 +339,6 @@ def get_temp_image(username, filename):
         return "File not found", 404
     return send_from_directory(temp_folder, filename)
 
-@app.route('/temp-humidity')
-def temp_humidity():
-    """API endpoint to return temperature and humidity readings."""
-    temperature, humidity = get_temperature_humidity()
-
-    if temperature is None or humidity is None:
-        return jsonify({"success": False, "error": "Failed to read sensor data"}), 500
-
-    return jsonify({"success": True, "temperature": temperature, "humidity": humidity})
-
 # ------------------ Run Flask ------------------
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=False)
