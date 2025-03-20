@@ -60,7 +60,7 @@
 
   <div class="container">
     {% if user %}
-      <!-- Heart Rate Analytics Card -->
+      <!-- Heart Rate Analytics Card (Existing) -->
       {% if heart_rate_stats %}
       <div class="card">
         <div class="card-header">
@@ -99,9 +99,76 @@
         </div>
       </div>
       {% else %}
+      {% endif %}
+
+      <!-- User Data Analysis Card -->
+      {% if user_data_analysis %}
+      <div class="card">
+        <div class="card-header">
+          User Data Analysis
+        </div>
+        <div class="card-body">
+          <!-- Dropdown for selecting measurement -->
+          <div class="mb-3">
+            <label for="measurementSelect" class="form-label">Select Measurement:</label>
+            <select id="measurementSelect" class="form-select">
+              <option value="heartrate">Heart Rate</option>
+              <option value="temperature">Temperature</option>
+              <option value="humidity">Humidity</option>
+              <option value="bodytemp">Body Temp</option>
+            </select>
+          </div>
+          <div class="row">
+            <!-- Summary Table -->
+            <div class="col-md-6">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Measurement</th>
+                    <th>Min</th>
+                    <th>Max</th>
+                    <th>Average</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Heart Rate</td>
+                    <td>{{ user_data_analysis.heartrate.min }}</td>
+                    <td>{{ user_data_analysis.heartrate.max }}</td>
+                    <td>{{ user_data_analysis.heartrate.avg }}</td>
+                  </tr>
+                  <tr>
+                    <td>Temperature</td>
+                    <td>{{ user_data_analysis.temperature.min }}</td>
+                    <td>{{ user_data_analysis.temperature.max }}</td>
+                    <td>{{ user_data_analysis.temperature.avg }}</td>
+                  </tr>
+                  <tr>
+                    <td>Humidity</td>
+                    <td>{{ user_data_analysis.humidity.min }}</td>
+                    <td>{{ user_data_analysis.humidity.max }}</td>
+                    <td>{{ user_data_analysis.humidity.avg }}</td>
+                  </tr>
+                  <tr>
+                    <td>Body Temp</td>
+                    <td>{{ user_data_analysis.bodytemp.min }}</td>
+                    <td>{{ user_data_analysis.bodytemp.max }}</td>
+                    <td>{{ user_data_analysis.bodytemp.avg }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <!-- Chart Display for selected measurement -->
+            <div class="col-md-6">
+              <canvas id="userDataChart" width="400" height="300"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% else %}
       <div class="card">
         <div class="card-body">
-          <p>No heart rate analytics available.</p>
+          <p>No user data available for analysis.</p>
         </div>
       </div>
       {% endif %}
@@ -120,7 +187,7 @@
   <script>
     window.onload = function() {
       {% if user %}
-        // Render Heart Rate Chart if analytics data exists
+        // Render Heart Rate Analytics Chart if data exists
         {% if heart_rate_stats %}
           const stats = {{ heart_rate_stats | tojson }};
           const labels = Object.keys(stats);
@@ -142,6 +209,45 @@
                 y: { beginAtZero: true }
               }
             }
+          });
+        {% endif %}
+
+        // Render User Data Analysis Chart based on selection
+        {% if user_data_analysis %}
+          const userDataAnalysis = {{ user_data_analysis | tojson }};
+          let currentChart = null;
+          const ctx2 = document.getElementById('userDataChart').getContext('2d');
+
+          function updateUserChart(measurement) {
+            let records = userDataAnalysis[measurement + '_records'];
+            let labels = records.map(record => record[0]);
+            let data = records.map(record => record[1]);
+            if (currentChart) {
+              currentChart.destroy();
+            }
+            currentChart = new Chart(ctx2, {
+              type: 'line',
+              data: {
+                labels: labels,
+                datasets: [{
+                  label: measurement.charAt(0).toUpperCase() + measurement.slice(1) + ' over Time',
+                  data: data,
+                  borderWidth: 2,
+                  fill: false
+                }]
+              },
+              options: {
+                scales: {
+                  y: { beginAtZero: true }
+                }
+              }
+            });
+          }
+          // Initially render Heart Rate chart
+          updateUserChart('heartrate');
+          // Add event listener to dropdown
+          document.getElementById('measurementSelect').addEventListener('change', function(e) {
+            updateUserChart(e.target.value);
           });
         {% endif %}
       {% endif %}
