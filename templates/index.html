@@ -39,7 +39,6 @@
   </style>
 </head>
 <body>
-  <!-- Navigation Bar -->
   <nav class="navbar navbar-expand-lg">
     <div class="container-fluid">
       <a class="navbar-brand" href="#">Smart Display Mirror</a>
@@ -60,55 +59,12 @@
 
   <div class="container">
     {% if user %}
-      <!-- Heart Rate Analytics Card (Existing) -->
-      {% if heart_rate_stats %}
+      {% if pandas_analysis %}
       <div class="card">
         <div class="card-header">
-          Heart Rate Analytics
+          User Data Analytics
         </div>
         <div class="card-body">
-          <div class="row">
-            <!-- Analytics Table -->
-            <div class="col-md-6">
-              <table class="table">
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Min</th>
-                    <th>Max</th>
-                    <th>Average</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for date, stats in heart_rate_stats.items() %}
-                  <tr>
-                    <td>{{ date }}</td>
-                    <td>{{ stats.min }}</td>
-                    <td>{{ stats.max }}</td>
-                    <td>{{ stats.avg }}</td>
-                  </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            </div>
-            <!-- Chart Display -->
-            <div class="col-md-6">
-              <canvas id="heartRateChart" width="400" height="300"></canvas>
-            </div>
-          </div>
-        </div>
-      </div>
-      {% else %}
-      {% endif %}
-
-      <!-- User Data Analysis Card -->
-      {% if user_data_analysis %}
-      <div class="card">
-        <div class="card-header">
-          User Data Analysis
-        </div>
-        <div class="card-body">
-          <!-- Dropdown for selecting measurement -->
           <div class="mb-3">
             <label for="measurementSelect" class="form-label">Select Measurement:</label>
             <select id="measurementSelect" class="form-select">
@@ -119,48 +75,59 @@
             </select>
           </div>
           <div class="row">
-            <!-- Summary Table -->
             <div class="col-md-6">
+              <h5>Descriptive Statistics</h5>
               <table class="table">
                 <thead>
                   <tr>
-                    <th>Measurement</th>
-                    <th>Min</th>
-                    <th>Max</th>
-                    <th>Average</th>
+                    <th>Metric</th>
+                    <th>Heart Rate</th>
+                    <th>Temperature</th>
+                    <th>Humidity</th>
+                    <th>Body Temp</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr>
-                    <td>Heart Rate</td>
-                    <td>{{ user_data_analysis.heartrate.min }}</td>
-                    <td>{{ user_data_analysis.heartrate.max }}</td>
-                    <td>{{ user_data_analysis.heartrate.avg }}</td>
+                    <td>Count</td>
+                    <td>{{ pandas_analysis.basic_stats.heartrate.count }}</td>
+                    <td>{{ pandas_analysis.basic_stats.temperature.count }}</td>
+                    <td>{{ pandas_analysis.basic_stats.humidity.count }}</td>
+                    <td>{{ pandas_analysis.basic_stats.bodytemp.count }}</td>
                   </tr>
                   <tr>
-                    <td>Temperature</td>
-                    <td>{{ user_data_analysis.temperature.min }}</td>
-                    <td>{{ user_data_analysis.temperature.max }}</td>
-                    <td>{{ user_data_analysis.temperature.avg }}</td>
+                    <td>Mean</td>
+                    <td>{{ pandas_analysis.basic_stats.heartrate.mean|round(2) }}</td>
+                    <td>{{ pandas_analysis.basic_stats.temperature.mean|round(2) }}</td>
+                    <td>{{ pandas_analysis.basic_stats.humidity.mean|round(2) }}</td>
+                    <td>{{ pandas_analysis.basic_stats.bodytemp.mean|round(2) }}</td>
                   </tr>
                   <tr>
-                    <td>Humidity</td>
-                    <td>{{ user_data_analysis.humidity.min }}</td>
-                    <td>{{ user_data_analysis.humidity.max }}</td>
-                    <td>{{ user_data_analysis.humidity.avg }}</td>
+                    <td>Std</td>
+                    <td>{{ pandas_analysis.basic_stats.heartrate.std|round(2) }}</td>
+                    <td>{{ pandas_analysis.basic_stats.temperature.std|round(2) }}</td>
+                    <td>{{ pandas_analysis.basic_stats.humidity.std|round(2) }}</td>
+                    <td>{{ pandas_analysis.basic_stats.bodytemp.std|round(2) }}</td>
                   </tr>
                   <tr>
-                    <td>Body Temp</td>
-                    <td>{{ user_data_analysis.bodytemp.min }}</td>
-                    <td>{{ user_data_analysis.bodytemp.max }}</td>
-                    <td>{{ user_data_analysis.bodytemp.avg }}</td>
+                    <td>Min</td>
+                    <td>{{ pandas_analysis.basic_stats.heartrate.min }}</td>
+                    <td>{{ pandas_analysis.basic_stats.temperature.min }}</td>
+                    <td>{{ pandas_analysis.basic_stats.humidity.min }}</td>
+                    <td>{{ pandas_analysis.basic_stats.bodytemp.min }}</td>
+                  </tr>
+                  <tr>
+                    <td>Max</td>
+                    <td>{{ pandas_analysis.basic_stats.heartrate.max }}</td>
+                    <td>{{ pandas_analysis.basic_stats.temperature.max }}</td>
+                    <td>{{ pandas_analysis.basic_stats.humidity.max }}</td>
+                    <td>{{ pandas_analysis.basic_stats.bodytemp.max }}</td>
                   </tr>
                 </tbody>
               </table>
             </div>
-            <!-- Chart Display for selected measurement -->
             <div class="col-md-6">
-              <canvas id="userDataChart" width="400" height="300"></canvas>
+              <canvas id="dataChart" width="400" height="300"></canvas>
             </div>
           </div>
         </div>
@@ -181,25 +148,36 @@
     {% endif %}
   </div>
 
-  <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
     window.onload = function() {
-      {% if user %}
-        // Render Heart Rate Analytics Chart if data exists
-        {% if heart_rate_stats %}
-          const stats = {{ heart_rate_stats | tojson }};
-          const labels = Object.keys(stats);
-          const avgData = labels.map(date => stats[date].avg);
-          const ctx = document.getElementById('heartRateChart').getContext('2d');
-          new Chart(ctx, {
+      {% if user and pandas_analysis %}
+        const pandasData = {{ pandas_analysis|tojson }};
+        let chartInstance = null;
+        const chartCtx = document.getElementById('dataChart').getContext('2d');
+
+        function updateChart(measurement) {
+          const records = pandasData.df_records;
+          const labels = [];
+          const data = [];
+          records.forEach(r => {
+            if (r.time_recorded) {
+              // Format date if you like, or just use r.time_recorded
+              labels.push(r.time_recorded);
+              data.push(r[measurement]);
+            }
+          });
+          if (chartInstance) {
+            chartInstance.destroy();
+          }
+          chartInstance = new Chart(chartCtx, {
             type: 'line',
             data: {
               labels: labels,
               datasets: [{
-                label: 'Average Heart Rate',
-                data: avgData,
+                label: measurement.charAt(0).toUpperCase() + measurement.slice(1) + ' Over Time',
+                data: data,
                 borderWidth: 2,
                 fill: false
               }]
@@ -210,46 +188,12 @@
               }
             }
           });
-        {% endif %}
+        }
 
-        // Render User Data Analysis Chart based on selection
-        {% if user_data_analysis %}
-          const userDataAnalysis = {{ user_data_analysis | tojson }};
-          let currentChart = null;
-          const ctx2 = document.getElementById('userDataChart').getContext('2d');
-
-          function updateUserChart(measurement) {
-            let records = userDataAnalysis[measurement + '_records'];
-            let labels = records.map(record => record[0]);
-            let data = records.map(record => record[1]);
-            if (currentChart) {
-              currentChart.destroy();
-            }
-            currentChart = new Chart(ctx2, {
-              type: 'line',
-              data: {
-                labels: labels,
-                datasets: [{
-                  label: measurement.charAt(0).toUpperCase() + measurement.slice(1) + ' over Time',
-                  data: data,
-                  borderWidth: 2,
-                  fill: false
-                }]
-              },
-              options: {
-                scales: {
-                  y: { beginAtZero: true }
-                }
-              }
-            });
-          }
-          // Initially render Heart Rate chart
-          updateUserChart('heartrate');
-          // Add event listener to dropdown
-          document.getElementById('measurementSelect').addEventListener('change', function(e) {
-            updateUserChart(e.target.value);
-          });
-        {% endif %}
+        updateChart('heartrate');
+        document.getElementById('measurementSelect').addEventListener('change', function(e) {
+          updateChart(e.target.value);
+        });
       {% endif %}
     };
 
