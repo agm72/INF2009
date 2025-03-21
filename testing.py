@@ -6,11 +6,11 @@ import numpy as np
 import json
 import face_recognition
 import paho.mqtt.client as mqtt
-from imutils import paths
-from datetime import datetime, date
+from datetime import date
 from sqlalchemy import create_engine, Column, Integer, String, Date
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from modules.ultrasonic import get_distance  # your ultrasonic sensor module
 
 # ------------------ Database Setup ------------------
 INSTANCE_FOLDER = os.path.join(os.getcwd(), "instance")
@@ -24,11 +24,11 @@ session = Session()
 Base = declarative_base()
 
 class User(Base):
-    __tablename__ = "user"  # Ensure this matches your table name
+    __tablename__ = "user"
     id = Column(Integer, primary_key=True)
     name = Column(String(100), unique=True, nullable=False)
     date_of_birth = Column(Date, nullable=False)
-    schedule_link = Column(String(300), nullable=False)  # Added schedule_link field
+    schedule_link = Column(String(300), nullable=False)
 
 # ------------------ Face Recognition Setup ------------------
 UPLOAD_FOLDER = '/home/fuzzi/WebInterface/Users'
@@ -55,8 +55,9 @@ def recognize_face():
     print("[INFO] Looking for a face...")
     max_attempts = 100
     attempts = 0
+    recognized_name = None
 
-    while attempts < max_attempts:
+    while attempts < max_attempts and recognized_name is None:
         ret, frame = cap.read()
         if not ret:
             print("[ERROR] Failed to capture frame")
@@ -71,15 +72,15 @@ def recognize_face():
             face_distances = face_recognition.face_distance(data["encodings"], face_encoding)
             best_match_index = np.argmin(face_distances)
             if matches[best_match_index]:
-                name = data["names"][best_match_index]
-                print(f"[INFO] Recognized: {name}")
-                cap.release()
-                return name
+                recognized_name = data["names"][best_match_index]
+                print(f"[INFO] Recognized: {recognized_name}")
+                break
         attempts += 1
 
     cap.release()
-    print("[INFO] Face not recognized within maximum attempts.")
-    return None
+    if recognized_name is None:
+        print("[INFO] Face not recognized within maximum attempts.")
+    return recognized_name
 
 def calculate_age(born):
     """
@@ -89,46 +90,72 @@ def calculate_age(born):
     age = today.year - born.year - ((today.month, today.day) < (born.month, born.day))
     return age
 
-# ------------------ MQTT Publisher ------------------
+# ------------------ MQTT and Sensor Integrated Loop ------------------
 def main():
-    print("[INFO] Starting continuous face detection until a valid user is detected...")
-    recognized_user = None
-    while not recognized_user:
-        recognized_name = recognize_face()
-        if not recognized_name:
-            print("[INFO] No face recognized. Retrying...")
-            continue
-
-        user = session.query(User).filter_by(name=recognized_name).first()
-        if not user:
-            print("[INFO] Recognized user not found in the database. Retrying...")
-            continue
-
-        recognized_user = user
-
-    # Once a valid user is detected, calculate age and create the MQTT message.
-    age = calculate_age(recognized_user.date_of_birth)
-    message_data = {
-        "username": recognized_user.name,
-        "age": age,
-        "schedule_link": recognized_user.schedule_link  # Include schedule_link in the message
-    }
-    message = json.dumps(message_data)
-    print(f"[INFO] Valid user detected: {recognized_user.name}, Age: {age}. Starting continuous MQTT publishing...")
-
-    # Create MQTT client using the specified Callback API version.
+    # MQTT client setup
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1, "Publisher")
     client.connect("localhost", 1883)
 
-    try:
-        while True:
+    # Parameters for sensor and recognition
+    SENSOR_THRESHOLD = 50.0      # centimeters
+    SENSOR_CHECK_INTERVAL = 5    # seconds between sensor checks
+    FACE_CHECK_INTERVAL = 30     # seconds to wait before re-checking face
+    last_face_check = 0
+
+    current_user = None
+
+    print("[INFO] Starting main loop. Continuously publishing MQTT messages.")
+
+    while True:
+        # Get distance measurement from ultrasonic sensor
+        distance = get_distance()
+        if distance == -1:
+            print("[ERROR] Sensor error: Check wiring or sensor. Retrying...")
+            time.sleep(SENSOR_CHECK_INTERVAL)
+            continue
+
+        print(f"[INFO] Measured distance: {distance} cm")
+
+        # If sensor detects a person (distance below threshold)
+        if distance <= SENSOR_THRESHOLD:
+            current_time = time.time()
+            # Run facial recognition if no user has been set yet or after a cooldown period
+            if current_user is None or (current_time - last_face_check) > FACE_CHECK_INTERVAL:
+                print("[INFO] Running facial recognition to update user data...")
+                recognized_name = recognize_face()
+                if recognized_name:
+                    user = session.query(User).filter_by(name=recognized_name).first()
+                    if user:
+                        # Update only if the detected user is different from current
+                        if current_user is None or (current_user and current_user.name != user.name):
+                            print(f"[INFO] Updating current user to: {user.name}")
+                            current_user = user
+                        else:
+                            print("[INFO] Same user detected. No update required.")
+                    else:
+                        print("[WARN] Recognized user not found in the database. Keeping previous user data.")
+                else:
+                    print("[INFO] No face recognized during check. Keeping current user data.")
+                last_face_check = current_time
+        else:
+            # Sensor does not detect a person: continue publishing the last known user data
+            print("[INFO] No user detected by sensor. Continuing with last known user data.")
+
+        # Publish MQTT message if we have a current user
+        if current_user:
+            age = calculate_age(current_user.date_of_birth)
+            message_data = {
+                "username": current_user.name,
+                "age": age,
+                "schedule_link": current_user.schedule_link
+            }
+            message = json.dumps(message_data)
             client.publish("face/recognized", message)
-            print(f"[INFO] Published message: {message}")
-            time.sleep(5)  # Publish every 5 seconds
-    except KeyboardInterrupt:
-        print("\n[INFO] Terminated by user.")
-    finally:
-        client.disconnect()
+            print(f"[INFO] Published MQTT message: {message}")
+        else:
+            print("[INFO] No current user data available to publish.")
+
+        time.sleep(SENSOR_CHECK_INTERVAL)
 
 if __name__ == "__main__":
     main()
